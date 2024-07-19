@@ -2,17 +2,18 @@
 # Copyright 2024 Canonical, Ltd.
 # See LICENSE file for licensing details
 #
-import os
 import pathlib
 
 from k8s_test_harness import harness
-from k8s_test_harness.util import exec_util
+from k8s_test_harness.util import constants, env_util, k8s_util
+
+IMG_PLATFORM = "amd64"
+IMG_NAME = "multus"
+INSTALL_NAME = "multus-cni"
 
 
 def test_multus_deployment(tmp_path: pathlib.Path, module_instance: harness.Instance):
-    image_uri = os.getenv("ROCK_MULTUS_V3_8")
-    assert image_uri is not None, "ROCK_MULTUS_V3_8 is not set"
-    image_split = image_uri.split(":")
+    rock = env_util.get_build_meta_info_for_rock_version(IMG_NAME, "v3.8", IMG_PLATFORM)
 
     clone_path = tmp_path / "multus"
     clone_path.mkdir()
@@ -29,37 +30,14 @@ def test_multus_deployment(tmp_path: pathlib.Path, module_instance: harness.Inst
 
     chart_path = clone_path / "multus"
 
-    helm_command = [
-        "sudo",
-        "k8s",
-        "helm",
-        "install",
-        "multus-cni",
-        str(chart_path.absolute()),
-        "--namespace",
-        "kube-system",
-        "--set",
-        f"image.repository={image_split[0]}",
-        "--set",
-        f"image.tag={image_split[1]}",
-        "--set",
-        "securityContext.runAsUser=584792",
-    ]
-
+    helm_command = k8s_util.get_helm_install_command(
+        name="multus-cni",
+        chart_name=str(chart_path.absolute()),
+        images=[k8s_util.HelmImage(uri=rock.image)],
+        namespace=constants.K8S_NS_KUBE_SYSTEM,
+    )
     module_instance.exec(helm_command)
 
-    exec_util.stubbornly(retries=3, delay_s=1).on(module_instance).exec(
-        [
-            "sudo",
-            "k8s",
-            "kubectl",
-            "rollout",
-            "status",
-            "daemonset",
-            "multus-cni-multus-ds",
-            "--namespace",
-            "kube-system",
-            "--timeout",
-            "60s",
-        ]
+    k8s_util.wait_for_daemonset(
+        module_instance, f"{INSTALL_NAME}-multus-ds", constants.K8S_NS_KUBE_SYSTEM
     )

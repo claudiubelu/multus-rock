@@ -50,3 +50,12 @@ parts:
       mkdir -p $CRAFT_PART_INSTALL/usr/src/multus-cni
       cp -r $CRAFT_PART_BUILD/bin $CRAFT_PART_INSTALL/usr/src/multus-cni
       cp $CRAFT_PART_BUILD/LICENSE $CRAFT_PART_INSTALL/usr/src/multus-cni
+
+  bitnami-compatibility:
+    plugin: nil
+    override-build: |
+      mkdir -p $CRAFT_PART_INSTALL/bitnami/multus-cni/host
+      ln -sf /bitnami/multus-cni/host $CRAFT_PART_INSTALL/host
+
+      mkdir -p $CRAFT_PART_INSTALL/usr/sbin/
+      ln -sf /install_multus $CRAFT_PART_INSTALL/usr/sbin/install_multus
