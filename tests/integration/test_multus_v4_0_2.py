@@ -15,11 +15,20 @@ def test_multus_deployment(module_instance: harness.Instance):
         IMG_NAME, "v4.0.2", IMG_PLATFORM
     )
 
+    # This helm chart requires the registry to be separated from the image.
+    rock_image = rock.image
+    registry = "docker.io"
+    parts = rock_image.split("/")
+    if len(parts) > 1:
+        registry = parts[0]
+        rock_image = "/".join(parts[1:])
+
     helm_command = k8s_util.get_helm_install_command(
         name=INSTALL_NAME,
         chart_name="oci://registry-1.docker.io/bitnamicharts/multus-cni",
-        images=[k8s_util.HelmImage(uri=rock.image)],
+        images=[k8s_util.HelmImage(uri=rock_image)],
         namespace=constants.K8S_NS_KUBE_SYSTEM,
+        set_configs=[f"image.registry={registry}"],
         chart_version="2.1.7",
     )
     module_instance.exec(helm_command)
